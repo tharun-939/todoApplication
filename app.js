@@ -53,9 +53,13 @@ const checkQueriesForGET = (request, response, next) => {
   ) {
     response.status(400)
     response.send('Invalid Todo Category')
-  } else if (date !== undefined && isDateValid === false) {
-    response.status(400)
-    response.send('Invalid Due Date')
+  } else if (date !== undefined) {
+    let formattedDate = format(new Date(date), 'yyyy-MM-dd')
+    let isValidDate = isValid(formattedDate)
+    if (isValidDate !== true) {
+      response.status(400)
+      response.send('Invalid Due Date')
+    }
   } else {
     next()
   }
@@ -87,9 +91,13 @@ const checkQueriesForPOSTAndPUT = (request, response, next) => {
   ) {
     response.status(400)
     response.send('Invalid Todo Category')
-  } else if (date !== undefined && isDateValid === false) {
-    response.status(400)
-    response.send('Invalid Due Date')
+  } else if (date !== undefined) {
+    let formattedDate = format(new Date(date), 'yyyy-MM-dd')
+    let isValidDate = isValid(formattedDate)
+    if (isValidDate !== true) {
+      response.status(400)
+      response.send('Invalid Due Date')
+    }
   } else {
     next()
   }
@@ -98,7 +106,7 @@ const checkQueriesForPOSTAndPUT = (request, response, next) => {
 const checkDueDate = (request, response, next) => {
   const {date} = request.query
   const newDate = new Date(date)
-  const formatedDate = format(newDate, 'yyyy-mm-dd')
+  const formatedDate = format(newDate, 'yyyy-MM-dd')
   const isValidDate = isValid(formatedDate)
   if (isValidDate) {
     response.status(400)
@@ -122,18 +130,18 @@ app.get('/todos/', checkQueriesForGET, async (request, response) => {
      select * from todo where category ='${category}' and status = '${status}';`
   } else if (status !== undefined) {
     selectQuery = `
-     select * from todo where status LIKE '${status}';`;
+     select * from todo where status LIKE '${status}';`
   } else if (priority !== undefined) {
     selectQuery = `
-     select * from todo where priority LIKE '${priority}';`;
+     select * from todo where priority LIKE '${priority}';`
   } else if (search_q !== undefined) {
     selectQuery = `
-     select * from todo where todo LIKE '%${search_q}%';`;
+     select * from todo where todo LIKE '%${search_q}%';`
   } else if (category !== undefined) {
     selectQuery = `
-     select * from todo where category = '${category}';`;
+     select * from todo where category = '${category}';`
   }
-  const data = await db.all(selectQuery);
+  const data = await db.all(selectQuery)
   response.send(
     data.map(eachValue => {
       return {
@@ -153,6 +161,7 @@ app.get('/todos/:todoId/', async (request, response) => {
   const selectQuery = `
   select * from todo where id = '${todoId}';`
   const data = await db.get(selectQuery)
+  console.log(data)
   response.send({
     id: data.id,
     todo: data.todo,
@@ -163,10 +172,10 @@ app.get('/todos/:todoId/', async (request, response) => {
   })
 })
 
-app.get('/agenda/', checkDueDate, async (request, response) => {
+app.get('/agenda/?date=:date', checkDueDate, async (request, response) => {
   const {date} = request.query
-  const newDate = new Date(date)
-  const formatedDate = format(newDate, 'yyyy-mm-dd')
+  const formatedDate = format(new Date(date), 'yyyy-MM-dd')
+  console.log(formatedDate)
   const selectQuery = `select * from todo where due_date = '${formatedDate}';`
   const data = await db.all(selectQuery)
   response.send(data)
@@ -174,9 +183,10 @@ app.get('/agenda/', checkDueDate, async (request, response) => {
 
 app.post('/todos/', checkQueriesForPOSTAndPUT, async (request, response) => {
   const {id, todo, priority, status, category, dueDate} = request.body
+  const formattedDate = format(new Date(dueDate), 'yyyy-MM=dd')
   const addTodoQuery = `
   INSERT INTO todo (id, todo, priority, status, category, due_date) 
-  VALUES('${id}', '${todo}', '${priority}', '${status}', '${category}', '${dueDate}');`
+  VALUES('${id}', '${todo}', '${priority}', '${status}', '${category}', '${formattedDate}');`
   await db.run(addTodoQuery)
   response.send('Todo Successfully Added')
 })
@@ -190,9 +200,9 @@ app.put(
     const {status, priority, todo, category, dueDate} = request.body
     if (status !== undefined) {
       selectQuery = `
-    update todo
-    set status = '${status}'
-    where id = ${todoId};`
+        update todo
+        set status = '${status}'
+        where id = ${todoId};`
       await db.run(selectQuery)
       response.send('Status Updated')
     } else if (priority !== undefined) {
@@ -212,14 +222,14 @@ app.put(
     } else if (category !== undefined) {
       selectQuery = `
     update todo
-    set (category = '${category}')
+    set category = '${category}'
     where id = ${todoId};`
       await db.run(selectQuery)
       response.send('Category Updated')
     } else if (dueDate !== undefined) {
       selectQuery = `
     update todo
-    set (due_date = '${dueDate}')
+    set due_date = '${dueDate}'
     where id = ${todoId};`
       await db.run(selectQuery)
       response.send('Due Date Updated')
